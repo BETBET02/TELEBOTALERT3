@@ -11,8 +11,12 @@ async def main():
     await init_db()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-bot = Bot(token=TELEGRAM_TOKEN, parse_mode=ParseMode.HTML)
-dp = Dispatcher(storage=MemoryStorage())
+from aiogram.client.default import DefaultBotProperties
+
+bot = Bot(
+    token=TELEGRAM_TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
 
 db_pool = None  # Tämä pidetään globaalina viitteenä
 
