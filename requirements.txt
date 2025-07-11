@@ -1,4 +1,4 @@
 python-telegram-bot==20.3
-aiohttp==3.8.4
+aiohttp==3.9.3
 aiogram==3.4.1
 asyncpg==0.29.0
