@@ -26,14 +26,6 @@ async def handle_message(message: Message):
 
     await message.answer("Terve, olet nyt rekisteröity tietokantaan! 😊")
 
-async def main():
-    global db_pool
-    db_pool = await create_pool()
-    await init_db(db_pool)
-
-    print("✅ Bot is running and connected to the database.")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
     asyncio.run(main())
 
+await init_db()
