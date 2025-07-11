@@ -1,12 +1,13 @@
-import os
 import asyncpg
-import asyncio
+import os
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Luo yhteyspooli (pool = useita yhteyksiä hallitusti)
 async def create_pool():
     return await asyncpg.create_pool(DATABASE_URL)
 
+# Alustetaan tietokanta (luodaan taulut jos puuttuvat)
 async def init_db(pool):
     async with pool.acquire() as conn:
         await conn.execute("""
@@ -17,7 +18,17 @@ async def init_db(pool):
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS bets (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                match TEXT,
+                odds FLOAT,
+                timestamp TIMESTAMP DEFAULT NOW()
+            );
+        """)
 
+# Lisää käyttäjä
 async def add_user(pool, telegram_id: int, username: str = None):
     async with pool.acquire() as conn:
         await conn.execute("""
@@ -26,27 +37,17 @@ async def add_user(pool, telegram_id: int, username: str = None):
             ON CONFLICT (telegram_id) DO NOTHING;
         """, telegram_id, username)
 
+# Hae käyttäjä ID:llä
 async def get_user(pool, telegram_id: int):
     async with pool.acquire() as conn:
-        return await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1;", telegram_id)
-import asyncpg
-import os
+        return await conn.fetchrow("""
+            SELECT * FROM users WHERE telegram_id = $1;
+        """, telegram_id)
 
-async def init_db():
-    conn = await asyncpg.connect(
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT", 5432))
-    )
-    await conn.execute("""
-        CREATE TABLE IF NOT EXISTS bets (
-            id SERIAL PRIMARY KEY,
-            user_id BIGINT,
-            match TEXT,
-            odds FLOAT,
-            timestamp TIMESTAMP DEFAULT NOW()
-        );
-    """)
-    await conn.close()
+# Lisää veto
+async def add_bet(pool, user_id: int, match: str, odds: float):
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO bets (user_id, match, odds)
+            VALUES ($1, $2, $3);
+        """, user_id, match, odds)
