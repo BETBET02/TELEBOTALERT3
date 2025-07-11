@@ -5,7 +5,10 @@ from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from db import create_pool, init_db, add_user
+from db import init_db
 
+async def main():
+    await init_db()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 bot = Bot(token=TELEGRAM_TOKEN, parse_mode=ParseMode.HTML)
