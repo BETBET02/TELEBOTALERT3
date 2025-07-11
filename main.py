@@ -68,3 +68,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text('Hei! Botin koodi toimii.')
+
+async def main():
+    app = ApplicationBuilder().token("TELEGRAM_BOT_TOKEN_HERE").build()
+    app.add_handler(CommandHandler("start", start))
+    await app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
