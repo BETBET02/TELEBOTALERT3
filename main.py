@@ -1,45 +1,43 @@
 import os
 import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import Message
+from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
+from aiogram.types import Message
+from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
-from db import create_pool, init_db, add_user
-from db import init_db
+from aiogram import Router
 
-async def main():
-    await init_db()
+from db import init_db, create_pool, add_user
+
+# ✅ Hae Telegram-token ympäristömuuttujista
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-from aiogram.client.default import DefaultBotProperties
-
+# ✅ Luo botti ja dispatcher
 bot = Bot(
     token=TELEGRAM_TOKEN,
     default=DefaultBotProperties(parse_mode=ParseMode.HTML)
 )
+dp = Dispatcher(storage=MemoryStorage())
+router = Router()
 
-db_pool = None  # Tämä pidetään globaalina viitteenä
-
-@dp.message()
+# ✅ Lisää viestinkäsittelijä
+@router.message()
 async def handle_message(message: Message):
-    global db_pool
     telegram_id = message.from_user.id
     username = message.from_user.username
 
-    await add_user(db_pool, telegram_id, username)
-
+    await add_user(dp["db_pool"], telegram_id, username)
     await message.answer("Terve, olet nyt rekisteröity tietokantaan! 😊")
 
+# ✅ Pääfunktio
+async def main():
+    db_pool = await create_pool()
+    await init_db(db_pool)
+    dp["db_pool"] = db_pool  # Tallennetaan pool Dispatcherin kontekstiin
+    dp.include_router(router)
+
+    await dp.start_polling(bot)
+
+# ✅ Käynnistys
+if __name__ == "__main__":
     asyncio.run(main())
-
-await init_db()
-from aiogram import Router
-from aiogram.types import Message
-
-router = Router()
-
-@router.message()
-async def handle_message(message: Message):
-    await message.answer("Hei! Bot toimii!")
-
-dp.include_router(router)
