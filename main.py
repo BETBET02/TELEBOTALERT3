@@ -78,3 +78,63 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+import asyncio
+import asyncpg
+from aiogram import Bot, Dispatcher, types
+from aiogram.utils import executor
+
+TOKEN = "TELEGRAM_BOT_TOKEN_HERE"
+DATABASE_URL = "postgresql://user:password@host:port/dbname"
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher(bot)
+
+# Yhteys tietokantaan muuttujaan, alustetaan myöhemmin
+db_pool = None
+
+async def init_db():
+    global db_pool
+    db_pool = await asyncpg.create_pool(DATABASE_URL)
+    # Luodaan taulu, jos ei ole
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                chat_id BIGINT PRIMARY KEY,
+                username TEXT
+            )
+        """)
+
+@dp.message_handler(commands=["start"])
+async def cmd_start(message: types.Message):
+    chat_id = message.chat.id
+    username = message.from_user.username or message.from_user.full_name
+
+    async with db_pool.acquire() as conn:
+        # Lisätään käyttäjä tai päivitetään nimi
+        await conn.execute("""
+            INSERT INTO users(chat_id, username) VALUES($1, $2)
+            ON CONFLICT (chat_id) DO UPDATE SET username = EXCLUDED.username
+        """, chat_id, username)
+    
+    await message.answer(f"Tervetuloa, {username}!")
+
+async def broadcast_message():
+    while True:
+        await asyncio.sleep(30)  # odota 30 sekuntia
+
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch("SELECT chat_id FROM users")
+        
+        for row in rows:
+            try:
+                await bot.send_message(row["chat_id"], "Päivitys: Tämä on testiviesti.")
+            except Exception as e:
+                print(f"Virhe viestin lähetyksessä chat_id:lle {row['chat_id']}: {e}")
+
+async def on_startup(dp):
+    await init_db()
+    # Käynnistä taustatehtävä
+    asyncio.create_task(broadcast_message())
+
+if __name__ == "__main__":
+    executor.start_polling(dp, on_startup=on_startup)
