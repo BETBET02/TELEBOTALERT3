@@ -37,4 +37,4 @@ async def news_loop(bot: Bot, chat_id: int):
             timestamp = datetime.now().strftime("%H:%M")
             msg = f"<b>📰 Uutiskatsaus ({timestamp})</b>\n\n" + "\n\n".join(news_items)
             await bot.send_message(chat_id=chat_id, text=msg)
-        await asyncio.sleep(3600)  # 1h välein
+        await asyncio.sleep(30)  # 30sec välein
