@@ -51,38 +51,32 @@ async def start_bot():
     dp.include_router(router)
     asyncio.create_task(odds_loop())
     from uutiset import news_loop
-from uutiset import fetch_news
 
 async def main():
     db_pool = await create_pool()
     await init_db(db_pool)
     dp["db_pool"] = db_pool
-    dp.include_router(router)
-
-    # 🟡 Testaa uutisten haku ja lähetys heti
-    news_items = await fetch_news()
-    if news_items:
-        msg = "<b>🧪 Testi-uutiset</b>\n\n" + "\n\n".join(news_items)
-        chat_id = int(os.getenv("NEWS_CHAT_ID"))
-        await bot.send_message(chat_id, msg)
-...
-
-async def main():
-    db_pool = await create_pool()
-    await init_db(db_pool)
-    dp["db_pool"] = db_pool
-
     dp.include_router(router)
 
     # 🟡 Taustatehtävät
-    asyncio.create_task(odds_loop())  # tämä voi jo olla siellä
+    asyncio.create_task(odds_loop())
 
-    # 🆕 Lisää uutislooppi tähän
-    chat_id = int(os.getenv("NEWS_CHAT_ID"))  # esim. sun Telegram-käyttäjän ID
+    from uutiset import news_loop, fetch_news
+
+    chat_id = int(os.getenv("NEWS_CHAT_ID"))
+
+    # 🔽🔽🔽 **🧪 TESTIOSIO: Lähetä uutiset heti kerran testiksi** 🔽🔽🔽
+    news_items = await fetch_news()
+    if news_items:
+        msg = "<b>🧪 Testi-uutiset</b>\n\n" + "\n\n".join(news_items)
+        await bot.send_message(chat_id, msg)
+    # 🔼🔼🔼 **🧪 TESTIOSIO PÄÄTTYY** 🔼🔼🔼
+
+    # 🆗 Käynnistä uutissilmukka tunnin välein
     asyncio.create_task(news_loop(bot, chat_id))
 
     await dp.start_polling(bot)
-    await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
