@@ -41,3 +41,9 @@ async def main():
 # ✅ Käynnistys
 if __name__ == "__main__":
     asyncio.run(main())
+from odds_fetcher import odds_loop
+
+async def main():
+    # ... (muut alustukset)
+    asyncio.create_task(odds_loop())
+    await dp.start_polling(bot)
