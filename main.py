@@ -50,6 +50,25 @@ async def start_bot():
     dp["db_pool"] = db_pool
     dp.include_router(router)
     asyncio.create_task(odds_loop())
+    from uutiset import news_loop
+
+...
+
+async def main():
+    db_pool = await create_pool()
+    await init_db(db_pool)
+    dp["db_pool"] = db_pool
+
+    dp.include_router(router)
+
+    # 🟡 Taustatehtävät
+    asyncio.create_task(odds_loop())  # tämä voi jo olla siellä
+
+    # 🆕 Lisää uutislooppi tähän
+    chat_id = int(os.getenv("NEWS_CHAT_ID"))  # esim. sun Telegram-käyttäjän ID
+    asyncio.create_task(news_loop(bot, chat_id))
+
+    await dp.start_polling(bot)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
