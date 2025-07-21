@@ -1,5 +1,7 @@
 import os
 import asyncio
+port = int(os.getenv("PORT", 8000))
+app.run(host="0.0.0.0", port=port)
 from aiogram import Bot, Dispatcher, Router
 from aiogram.enums import ParseMode
 from aiogram.types import Message
