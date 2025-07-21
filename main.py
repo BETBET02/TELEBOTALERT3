@@ -20,14 +20,15 @@ bot = Bot(
 dp = Dispatcher(storage=MemoryStorage())
 router = Router()
 
-# ✅ Lisää viestinkäsittelijä
-@router.message()
+@router.message(lambda msg: not msg.text.startswith("/"))
 async def handle_message(message: Message):
     telegram_id = message.from_user.id
     username = message.from_user.username
 
     await add_user(dp["db_pool"], telegram_id, username)
     await message.answer("Terve, olet nyt rekisteröity tietokantaan! 😊")
+
+
 
 # ✅ Pääfunktio
 async def main():
