@@ -51,7 +51,20 @@ async def start_bot():
     dp.include_router(router)
     asyncio.create_task(odds_loop())
     from uutiset import news_loop
+from uutiset import fetch_news
 
+async def main():
+    db_pool = await create_pool()
+    await init_db(db_pool)
+    dp["db_pool"] = db_pool
+    dp.include_router(router)
+
+    # 🟡 Testaa uutisten haku ja lähetys heti
+    news_items = await fetch_news()
+    if news_items:
+        msg = "<b>🧪 Testi-uutiset</b>\n\n" + "\n\n".join(news_items)
+        chat_id = int(os.getenv("NEWS_CHAT_ID"))
+        await bot.send_message(chat_id, msg)
 ...
 
 async def main():
