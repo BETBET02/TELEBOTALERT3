@@ -47,3 +47,20 @@ async def main():
     # ... (muut alustukset)
     asyncio.create_task(odds_loop())
     await dp.start_polling(bot)
+from games import get_today_matches
+from aiogram import Router
+from aiogram.types import Message
+from aiogram.filters import Command
+
+router = Router()
+
+@router.message(Command("pelit"))
+async def pelit_komento(message: Message):
+    matches = await get_today_matches()
+    if matches:
+        msg = "Tämän päivän Allsvenskan-ottelut:\n\n" + "\n".join(matches)
+    else:
+        msg = "Tänään ei ole Allsvenskan-otteluita."
+    await message.answer(msg)
+
+dp.include_router(router)
