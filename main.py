@@ -48,7 +48,7 @@ async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         from_date = to_date = date_obj.isoformat()
     else:
-        from_date = (today - timedelta(days=5)).isoformat()
+        from_date = (today - timedelta(days=10)).isoformat()
         to_date = today.isoformat()
 
     urls = [
