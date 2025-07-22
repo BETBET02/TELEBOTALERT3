@@ -56,13 +56,17 @@ async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Järjestä uusimmat ensin ja rajaa esim. 10 uutiseen
     sorted_articles = sorted(all_articles, key=lambda a: a.get("publishedAt", ""), reverse=True)[:10]
 
-   reply_text = f"<b>Ajankohtaisia uutisia aiheesta {query}:</b>\n\n"
-for article in sorted_articles:
-    title = article.get("title", "Ei otsikkoa")
-    url = article.get("url", "")
-    reply_text += f"• <a href='{url}'>{title}</a>\n"
+eply_text = f"<b>Ajankohtaisia uutisia aiheesta {query}:</b>\n\n"
+    for article in sorted_articles:
+        title = article.get("title", "Ei otsikkoa")
+        url = article.get("url", "")
+        reply_text += f"• <a href='{url}'>{title}</a>\n"
 
-   await update.message.reply_text(reply_text, parse_mode="HTML", disable_web_page_preview=True)
+  await update.message.reply_text(
+        reply_text,
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
