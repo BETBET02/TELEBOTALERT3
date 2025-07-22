@@ -1,5 +1,6 @@
 import os
 import requests
+import urllib.parse
 from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -7,59 +8,61 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 TOKEN = os.getenv("BOT_TOKEN")
 
-import urllib.parse
-
-def build_newsapi_url(query, from_date, to_date):
-    enhanced_query = f"({query}) AND (pelaajakaupat OR loukkaantumiset OR kokoonpanomuutokset OR urheilu)"
+def build_newsapi_url(query, from_date, to_date, language):
+    enhanced_query = (
+        f"({query}) AND "
+        "(pelaajakaupat OR loukkaantumiset OR kokoonpano OR siirto OR trade OR injury OR lineup OR transfer OR coach)"
+    )
     encoded_query = urllib.parse.quote_plus(enhanced_query)
     return (
         f"https://newsapi.org/v2/everything?"
         f"q={encoded_query}&"
         f"from={from_date}&"
         f"to={to_date}&"
-        f"language=fi&"
+        f"language={language}&"
         f"sortBy=publishedAt&"
         f"apiKey={NEWS_API_KEY}"
     )
 
 async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Käytä /uutiset <hakusana tai päivämäärä (YYYY-MM-DD)>")
+        await update.message.reply_text(
+            "Käytä komentoa näin:\n/uutiset <aihe>\n"
+            "Esimerkiksi:\n/uutiset jalkapallo\n/uutiset nhl"
+        )
         return
 
-    query = context.args[0]
+    query = " ".join(context.args)
+    to_date = datetime.now().strftime("%Y-%m-%d")
+    from_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
 
-    try:
-        # Yritetään parsia päivämäärä
-        date_obj = datetime.strptime(query, "%Y-%m-%d")
-        from_date = date_obj.strftime("%Y-%m-%d")
-        to_date = from_date
-    except ValueError:
-        # Ei päivämäärää, käytetään nyt - 14 päivää
-        to_date = datetime.now().strftime("%Y-%m-%d")
-        from_date = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+    urls = [
+        build_newsapi_url(query, from_date, to_date, "fi"),
+        build_newsapi_url(query, from_date, to_date, "en")
+    ]
 
-    url = build_newsapi_url(query=query + " urheilu", from_date=from_date, to_date=to_date)
+    all_articles = []
+    for url in urls:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get("articles", [])
+            all_articles.extend(articles)
 
-    response = requests.get(url)
-    if response.status_code != 200:
-        await update.message.reply_text("Uutisten hakeminen epäonnistui.")
+    if not all_articles:
+        await update.message.reply_text("Ei löytynyt uutisia aiheesta.")
         return
 
-    data = response.json()
-    articles = data.get("articles", [])
+    # Järjestä uusimmat ensin ja rajaa esim. 10 uutiseen
+    sorted_articles = sorted(all_articles, key=lambda a: a.get("publishedAt", ""), reverse=True)[:10]
 
-    if not articles:
-        await update.message.reply_text("Ei löytynyt uutisia annetulla hakusanalla.")
-        return
-
-    reply_text = "Uutisia:\n"
-    for article in articles[:5]:  # Näytetään max 5 uutista
+    reply_text = f"Ajankohtaisia uutisia aiheesta *{query}*:\n\n"
+    for article in sorted_articles:
         title = article.get("title", "Ei otsikkoa")
         url = article.get("url", "")
-        reply_text += f"• {title}\n{url}\n\n"
+        reply_text += f"• [{title}]({url})\n"
 
-    await update.message.reply_text(reply_text)
+    await update.message.reply_text(reply_text, parse_mode="Markdown")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
