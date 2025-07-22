@@ -3,7 +3,7 @@ import asyncio
 from aiogram import Bot
 
 async def clear_updates():
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+    TELEGRAM_TOKEN = os.getenv(7975060509:AAHeCzTGePXUlA59FCrSxhDP-FJRRu7zu0o)
     bot = Bot(token=TELEGRAM_TOKEN)
     await bot.delete_webhook(drop_pending_updates=True)
     print("Webhook deleted and pending updates cleared!")
