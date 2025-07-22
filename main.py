@@ -7,10 +7,14 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 TOKEN = os.getenv("BOT_TOKEN")
 
+import urllib.parse
+
 def build_newsapi_url(query, from_date, to_date):
+    enhanced_query = f"({query}) AND (pelaajakaupat OR loukkaantumiset OR kokoonpanomuutokset OR urheilu)"
+    encoded_query = urllib.parse.quote_plus(enhanced_query)
     return (
         f"https://newsapi.org/v2/everything?"
-        f"q={query}&"
+        f"q={encoded_query}&"
         f"from={from_date}&"
         f"to={to_date}&"
         f"language=fi&"
