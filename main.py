@@ -1,85 +1,113 @@
 import os
 import requests
-import urllib.parse
 from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+SPORTSRADAR_API_KEY = os.getenv("SPORTSRADAR_API_KEY")
 TOKEN = os.getenv("BOT_TOKEN")
 
-def build_newsapi_url(query, from_date, to_date, language):
-    encoded_query = urllib.parse.quote_plus(query)
-    return (
-        f"https://newsapi.org/v2/everything?"
-        f"q={encoded_query}&"
-        f"from={from_date}&"
-        f"to={to_date}&"
-        f"language={language}&"
-        f"sortBy=publishedAt&"
-        f"apiKey={NEWS_API_KEY}"
-    )
+# Funktiot SportRadar API-kutsuihin
+def get_player_transfers():
+    url = f"https://api.sportradar.com/nhl/trial/v7/en/player_transfers.json?api_key={SPORTSRADAR_API_KEY}"
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.json()
+    return None
 
+def get_injuries():
+    url = f"https://api.sportradar.com/nhl/trial/v7/en/injuries.json?api_key={SPORTSRADAR_API_KEY}"
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.json()
+    return None
+
+def get_lineups():
+    # Esimerkki: haetaan viimeisimmän päivän kokoonpanot
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    url = f"https://api.sportradar.com/nhl/trial/v7/en/games/{today}/lineups.json?api_key={SPORTSRADAR_API_KEY}"
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.json()
+    return None
+
+# Telegram-komento
 async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
         await update.message.reply_text(
             "Käytä komentoa muodossa:\n"
-            "/uutiset <aihe> [päivämäärä]\n"
-            "Esim.:\n"
-            "/uutiset nhl\n"
-            "/uutiset nhl 2025-07-22"
+            "/uutiset <aihe>\n"
+            "Esim:\n"
+            "/uutiset siirrot\n"
+            "/uutiset loukkaantumiset\n"
+            "/uutiset kokoonpanot"
         )
         return
 
-    query = args[0]
-    today = datetime.utcnow().date()
+    aihe = args[0].lower()
 
-    if len(args) == 2:
-        try:
-            date_obj = datetime.strptime(args[1], "%Y-%m-%d").date()
-            from_date = to_date = date_obj.isoformat()
-        except ValueError:
-            await update.message.reply_text("Virheellinen päivämäärämuoto. Käytä YYYY-MM-DD.")
+    if aihe == "siirrot":
+        data = get_player_transfers()
+        if not data:
+            await update.message.reply_text("Ei löytynyt siirtotietoja.")
             return
+        viesti = "Pelaajasiirrot:\n"
+        transfers = data.get("transfers", [])
+        if not transfers:
+            viesti += "Ei siirtoja tällä hetkellä."
+        else:
+            for t in transfers[:10]:  # max 10
+                player = t.get("player", {}).get("name", "Tuntematon")
+                from_team = t.get("from_team", {}).get("name", "Tuntematon")
+                to_team = t.get("to_team", {}).get("name", "Tuntematon")
+                date = t.get("transfer_date", "Tuntematon päivämäärä")
+                viesti += f"• {player}: {from_team} → {to_team} ({date})\n"
+        await update.message.reply_text(viesti)
+
+    elif aihe == "loukkaantumiset":
+        data = get_injuries()
+        if not data:
+            await update.message.reply_text("Ei löytynyt loukkaantumistietoja.")
+            return
+        viesti = "Loukkaantumiset:\n"
+        injuries = data.get("injuries", [])
+        if not injuries:
+            viesti += "Ei loukkaantumistietoja tällä hetkellä."
+        else:
+            for i in injuries[:10]:
+                player = i.get("player", {}).get("name", "Tuntematon")
+                injury_desc = i.get("injury", "Tuntematon vamma")
+                status = i.get("status", "Tuntematon status")
+                viesti += f"• {player}: {injury_desc} ({status})\n"
+        await update.message.reply_text(viesti)
+
+    elif aihe == "kokoonpanot":
+        data = get_lineups()
+        if not data:
+            await update.message.reply_text("Ei löytynyt kokoonpanotietoja.")
+            return
+        viesti = "Kokoonpanot:\n"
+        games = data.get("games", [])
+        if not games:
+            viesti += "Ei kokoonpanoja tänään."
+        else:
+            for game in games[:5]:  # max 5 ottelua
+                home = game.get("home", {}).get("name", "Tuntematon")
+                away = game.get("away", {}).get("name", "Tuntematon")
+                viesti += f"• {home} vs {away}\n"
+                lineup_home = game.get("lineups", {}).get("home", [])
+                lineup_away = game.get("lineups", {}).get("away", [])
+                viesti += "  Kotijoukkue:\n"
+                for player in lineup_home[:5]:  # max 5 pelaajaa
+                    viesti += f"   - {player.get('name', 'Tuntematon')}\n"
+                viesti += "  Vierasjoukkue:\n"
+                for player in lineup_away[:5]:
+                    viesti += f"   - {player.get('name', 'Tuntematon')}\n"
+        await update.message.reply_text(viesti)
+
     else:
-        from_date = (today - timedelta(days=10)).isoformat()
-        to_date = today.isoformat()
-
-    urls = [
-        build_newsapi_url(query, from_date, to_date, "fi"),
-        build_newsapi_url(query, from_date, to_date, "en")
-    ]
-
-    all_articles = []
-    for url in urls:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            articles = data.get("articles", [])
-            all_articles.extend(articles)
-
-    if not all_articles:
-        await update.message.reply_text("Ei löytynyt uutisia haulla.")
-        return
-
-    sorted_articles = sorted(
-        all_articles,
-        key=lambda a: a.get("publishedAt", ""),
-        reverse=True
-    )[:10]
-
-    reply_text = f"<b>Uutiset aiheesta '{query}' ajalta {from_date} - {to_date}:</b>\n\n"
-    for article in sorted_articles:
-        title = article.get("title", "Ei otsikkoa").replace("<", "&lt;").replace(">", "&gt;")
-        url = article.get("url", "")
-        reply_text += f"• <a href='{url}'>{title}</a>\n"
-
-    await update.message.reply_text(
-        reply_text,
-        parse_mode="HTML",
-        disable_web_page_preview=True
-    )
+        await update.message.reply_text("Tuntematon aihe. Käytä: siirrot, loukkaantumiset tai kokoonpanot.")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
