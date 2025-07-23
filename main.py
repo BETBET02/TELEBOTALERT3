@@ -1,116 +1,210 @@
 import os
 import requests
-from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-SPORTSRADAR_API_KEY = os.getenv("SPORTSRADAR_API_KEY")
-TOKEN = os.getenv("BOT_TOKEN")
+API_KEY = os.getenv("SPORTSRADAR_API_KEY")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Funktiot SportRadar API-kutsuihin
-def get_player_transfers():
-    url = f"https://api.sportradar.com/nhl/trial/v7/en/player_transfers.json?api_key={SPORTSRADAR_API_KEY}"
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.json()
-    return None
+# Tässä esimerkkinä joitain liigoja ja niiden Sportsradarin league ID:t (placeholder)
+LEAGUES = {
+    "nhl": {
+        "name": "NHL",
+        "league_id": "sr:league:51",
+        "base_url": "https://api.sportradar.com/nhl/trial/v7/en"
+    },
+    "nba": {
+        "name": "NBA",
+        "league_id": "sr:league:46",
+        "base_url": "https://api.sportradar.com/nba/trial/v7/en"
+    },
+    "la_liga": {
+        "name": "La Liga",
+        "league_id": "sr:competition:17",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "bundesliga": {
+        "name": "Bundesliga",
+        "league_id": "sr:competition:10",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "serie_a_italia": {
+        "name": "Serie A Italia",
+        "league_id": "sr:competition:11",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "serie_a_brasilia": {
+        "name": "Serie A Brasilia",
+        "league_id": "sr:competition:44",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "liga_professional": {
+        "name": "Liga Profesional Argentina",
+        "league_id": "sr:competition:57",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "ligue_1": {
+        "name": "Ligue 1",
+        "league_id": "sr:competition:13",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "eredivisie": {
+        "name": "Eredivisie",
+        "league_id": "sr:competition:19",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "valioliiga": {
+        "name": "Valioliiga",
+        "league_id": "sr:competition:8",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "veikkausliiga": {
+        "name": "Veikkausliiga",
+        "league_id": "sr:competition:131",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "allsvenskan": {
+        "name": "Allsvenskan",
+        "league_id": "sr:competition:124",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "eliteserien": {
+        "name": "Eliteserien",
+        "league_id": "sr:competition:134",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "turkin_super_lig": {
+        "name": "Turkin Super Lig",
+        "league_id": "sr:competition:102",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "tanskan_super_lig": {
+        "name": "Tanskan Super Lig",
+        "league_id": "sr:competition:127",
+        "base_url": "https://api.sportradar.com/soccer/trial/v4/en"
+    },
+    "khl": {
+        "name": "KHL",
+        "league_id": "sr:league:77",
+        "base_url": "https://api.sportradar.com/hockey/ru/trial/v7/en"
+    },
+    "shl": {
+        "name": "SHL",
+        "league_id": "sr:league:53",
+        "base_url": "https://api.sportradar.com/hockey/se/trial/v7/en"
+    },
+    "liiga": {
+        "name": "Liiga",
+        "league_id": "sr:league:54",
+        "base_url": "https://api.sportradar.com/hockey/fi/trial/v7/en"
+    },
+    "extra_liga": {
+        "name": "Extra Liga (Tsekki)",
+        "league_id": "sr:league:39",
+        "base_url": "https://api.sportradar.com/hockey/ru/trial/v7/en"
+    },
+    "nla": {
+        "name": "NLA (Sveitsi)",
+        "league_id": "sr:league:55",
+        "base_url": "https://api.sportradar.com/hockey/ch/trial/v7/en"
+    },
+}
 
-def get_injuries():
-    url = f"https://api.sportradar.com/nhl/trial/v7/en/injuries.json?api_key={SPORTSRADAR_API_KEY}"
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.json()
-    return None
+def get_teams(league):
+    """Hakee joukkueet annetusta liigasta."""
+    base_url = league["base_url"]
+    league_id = league["league_id"]
+    url = f"{base_url}/seasons/{league_id}/teams.json?api_key={API_KEY}"
 
-def get_lineups():
-    # Esimerkki: haetaan viimeisimmän päivän kokoonpanot
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-    url = f"https://api.sportradar.com/nhl/trial/v7/en/games/{today}/lineups.json?api_key={SPORTSRADAR_API_KEY}"
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.json()
-    return None
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        data = r.json()
+        # Olettaen että joukkueet löytyvät data["teams"] tai vastaava
+        teams = data.get("teams") or data.get("competitors") or []
+        return teams
+    except Exception as e:
+        print(f"Virhe joukkueiden haussa {league['name']}: {e}")
+        return []
 
-# Telegram-komento
-async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if not args:
-        await update.message.reply_text(
-            "Käytä komentoa muodossa:\n"
-            "/uutiset <aihe>\n"
-            "Esim:\n"
-            "/uutiset siirrot\n"
-            "/uutiset loukkaantumiset\n"
-            "/uutiset kokoonpanot"
-        )
-        return
-
-    aihe = args[0].lower()
-
-    if aihe == "siirrot":
-        data = get_player_transfers()
-        if not data:
-            await update.message.reply_text("Ei löytynyt siirtotietoja.")
-            return
-        viesti = "Pelaajasiirrot:\n"
-        transfers = data.get("transfers", [])
-        if not transfers:
-            viesti += "Ei siirtoja tällä hetkellä."
-        else:
-            for t in transfers[:10]:  # max 10
-                player = t.get("player", {}).get("name", "Tuntematon")
-                from_team = t.get("from_team", {}).get("name", "Tuntematon")
-                to_team = t.get("to_team", {}).get("name", "Tuntematon")
-                date = t.get("transfer_date", "Tuntematon päivämäärä")
-                viesti += f"• {player}: {from_team} → {to_team} ({date})\n"
-        await update.message.reply_text(viesti)
-
-    elif aihe == "loukkaantumiset":
-        data = get_injuries()
-        if not data:
-            await update.message.reply_text("Ei löytynyt loukkaantumistietoja.")
-            return
-        viesti = "Loukkaantumiset:\n"
+def get_injuries_for_team(base_url, team_id):
+    """Hakee loukkaantumistiedot joukkueelle."""
+    url = f"{base_url}/teams/{team_id}/injuries.json?api_key={API_KEY}"
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        data = r.json()
         injuries = data.get("injuries", [])
-        if not injuries:
-            viesti += "Ei loukkaantumistietoja tällä hetkellä."
-        else:
-            for i in injuries[:10]:
-                player = i.get("player", {}).get("name", "Tuntematon")
-                injury_desc = i.get("injury", "Tuntematon vamma")
-                status = i.get("status", "Tuntematon status")
-                viesti += f"• {player}: {injury_desc} ({status})\n"
-        await update.message.reply_text(viesti)
+        return injuries
+    except Exception as e:
+        print(f"Virhe loukkaantumistiedoissa joukkueelle {team_id}: {e}")
+        return []
 
-    elif aihe == "kokoonpanot":
-        data = get_lineups()
-        if not data:
-            await update.message.reply_text("Ei löytynyt kokoonpanotietoja.")
-            return
-        viesti = "Kokoonpanot:\n"
-        games = data.get("games", [])
-        if not games:
-            viesti += "Ei kokoonpanoja tänään."
-        else:
-            for game in games[:5]:  # max 5 ottelua
-                home = game.get("home", {}).get("name", "Tuntematon")
-                away = game.get("away", {}).get("name", "Tuntematon")
-                viesti += f"• {home} vs {away}\n"
-                lineup_home = game.get("lineups", {}).get("home", [])
-                lineup_away = game.get("lineups", {}).get("away", [])
-                viesti += "  Kotijoukkue:\n"
-                for player in lineup_home[:5]:  # max 5 pelaajaa
-                    viesti += f"   - {player.get('name', 'Tuntematon')}\n"
-                viesti += "  Vierasjoukkue:\n"
-                for player in lineup_away[:5]:
-                    viesti += f"   - {player.get('name', 'Tuntematon')}\n"
-        await update.message.reply_text(viesti)
+async def loukkaantumiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    search_term = args[0].lower() if args else None
 
+    msg = ""
+
+    # Suorita joko haku kaikista liigoista tai haetaan yksi liiga/joukkue
+    if not search_term:
+        # Kaikki liigat
+        for key, league in LEAGUES.items():
+            msg += f"\n🏟️ *{league['name']}*:\n"
+            teams = get_teams(league)
+            if not teams:
+                msg += "Ei joukkueita saatavilla.\n"
+                continue
+
+            for team in teams:
+                team_id = team.get("id") or team.get("sr_id") or team.get("team_id") or team.get("reference")
+                team_name = team.get("name") or team.get("market") or "Joukkue"
+                injuries = get_injuries_for_team(league["base_url"], team_id)
+                if injuries:
+                    for injury in injuries:
+                        player = injury.get("player") or {}
+                        player_name = player.get("name") or "Pelaaja"
+                        injury_desc = injury.get("description") or "Loukkaantuminen"
+                        msg += f"• {player_name} ({team_name}): {injury_desc}\n"
+                else:
+                    msg += f"• Ei loukkaantumisia joukkueella {team_name}\n"
     else:
-        await update.message.reply_text("Tuntematon aihe. Käytä: siirrot, loukkaantumiset tai kokoonpanot.")
+        # Haetaan annetun liigan tai joukkueen loukkaantumiset
+        found_league = None
+        for key, league in LEAGUES.items():
+            if search_term in [key, league["name"].lower()]:
+                found_league = league
+                break
+
+        if found_league:
+            msg += f"\n🏟️ *{found_league['name']}*:\n"
+            teams = get_teams(found_league)
+            if not teams:
+                msg += "Ei joukkueita saatavilla.\n"
+            else:
+                for team in teams:
+                    team_id = team.get("id") or team.get("sr_id") or team.get("team_id") or team.get("reference")
+                    team_name = team.get("name") or team.get("market") or "Joukkue"
+                    injuries = get_injuries_for_team(found_league["base_url"], team_id)
+                    if injuries:
+                        for injury in injuries:
+                            player = injury.get("player") or {}
+                            player_name = player.get("name") or "Pelaaja"
+                            injury_desc = injury.get("description") or "Loukkaantuminen"
+                            msg += f"• {player_name} ({team_name}): {injury_desc}\n"
+                    else:
+                        msg += f"• Ei loukkaantumisia joukkueella {team_name}\n"
+        else:
+            # Jos ei löytynyt liigaa, yritetään etsiä joukkue nimellä (yksinkertaistettuna)
+            msg += "Annetulla nimellä ei löytynyt liigaa. Yritä uudelleen."
+
+    if not msg.strip():
+        msg = "Ei loukkaantumistietoja saatavilla."
+
+    await update.message.reply_text(msg)
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("uutiset", uutiset))
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("loukkaantumiset", loukkaantumiset))
     print("Botti käynnissä...")
     app.run_polling()
