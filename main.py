@@ -3,54 +3,13 @@ import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# Haetaan tokenit ympäristömuuttujista
 TOKEN = os.getenv("BOT_TOKEN")
 SPORTSRADAR_API_KEY = os.getenv("SPORTSRADAR_API_KEY")
-
-# Liigan ja kausien ID:t (voit lisätä tarvittaessa)
-LEAGUE_ID = "fd560107-a85b-4388-ab0d-655ad022aff7"
 
 SEASONS = {
     "preseason": "4383ec83-6112-47f0-867a-8839145e1d58",
     "regular": "4a67cca6-b450-45f9-91c6-48e92ac19069",
     "postseason": "3c1bb21f-6523-4115-87ee-c8c16ed80421"
-}
-
-# Joukkueiden id:t, voit lisätä tai muokata
-TEAM_IDS = {
-    "Avalanche": "4415ce44-0f24-11e2-8525-18a905767e44",
-    "Blackhawks": "4416272f-0f24-11e2-8525-18a905767e44",
-    "Blue Jackets": "44167db4-0f24-11e2-8525-18a905767e44",
-    "Blues": "441660ea-0f24-11e2-8525-18a905767e44",
-    "Bruins": "4416ba1a-0f24-11e2-8525-18a905767e44",
-    "Canada": "2daa7c51-22ba-41ba-97bd-a920782b8541",
-    "Canadiens": "441713b7-0f24-11e2-8525-18a905767e44",
-    "Canucks": "4415b0a7-0f24-11e2-8525-18a905767e44",
-    "Capitals": "4417eede-0f24-11e2-8525-18a905767e44",
-    "Devils": "44174b0c-0f24-11e2-8525-18a905767e44",
-    "Ducks": "441862de-0f24-11e2-8525-18a905767e44",
-    "Flames": "44159241-0f24-11e2-8525-18a905767e44",
-    "Flyers": "44179d47-0f24-11e2-8525-18a905767e44",
-    "Golden Knights": "42376e1c-6da8-461e-9443-cfcf0a9fcc4d",
-    "Hurricanes": "44182a9d-0f24-11e2-8525-18a905767e44",
-    "Islanders": "441766b9-0f24-11e2-8525-18a905767e44",
-    "Jets": "44180e55-0f24-11e2-8525-18a905767e44",
-    "Kings": "44151f7a-0f24-11e2-8525-18a905767e44",
-    "Kraken": "1fb48e65-9688-4084-8868-02173525c3e1",
-    "Lightning": "4417d3cb-0f24-11e2-8525-18a905767e44",
-    "Mammoth": "715a1dba-4e9f-4158-8346-3473b6e3557f",
-    "Maple Leafs": "441730a9-0f24-11e2-8525-18a905767e44",
-    "Oilers": "4415ea6c-0f24-11e2-8525-18a905767e44",
-    "Panthers": "4418464d-0f24-11e2-8525-18a905767e44",
-    "Penguins": "4417b7d7-0f24-11e2-8525-18a905767e44",
-    "Predators": "441643b7-0f24-11e2-8525-18a905767e44",
-    "Rangers": "441781b9-0f24-11e2-8525-18a905767e44",
-    "Red Wings": "44169bb9-0f24-11e2-8525-18a905767e44",
-    "Sabres": "4416d559-0f24-11e2-8525-18a905767e44",
-    "Senators": "4416f5e2-0f24-11e2-8525-18a905767e44",
-    "Sharks": "44155909-0f24-11e2-8525-18a905767e44",
-    "Stars": "44157522-0f24-11e2-8525-18a905767e44",
-    "Wild": "4416091c-0f24-11e2-8525-18a905767e44",
 }
 
 async def loukkaantumiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,7 +31,7 @@ async def loukkaantumiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     season_id = SEASONS[season_key]
 
-    url = f"https://api.sportradar.com/nhl/trial/v7/en/league/{season_id}/injuries.json"
+    url = f"https://api.sportradar.com/nhl/trial/v7/en/seasons/{season_id}/injuries.json"
     headers = {
         "accept": "application/json",
         "x-api-key": SPORTSRADAR_API_KEY
@@ -110,7 +69,6 @@ async def loukkaantumiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_text += f"  ▸ {comment}\n"
         reply_text += "\n"
 
-    # Varmistetaan ettei viesti ole liian pitkä Telegramissa (~4096 merkkiä max)
     if len(reply_text) > 4000:
         reply_text = reply_text[:4000] + "\n\n[Viesti katkaistu]"
 
