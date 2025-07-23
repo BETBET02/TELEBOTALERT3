@@ -9,11 +9,7 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 TOKEN = os.getenv("BOT_TOKEN")
 
 def build_newsapi_url(query, from_date, to_date, language):
-    enhanced_query = (
-        f"({query}) AND "
-        "(pelaajakaupat OR loukkaantumiset OR kokoonpano OR siirto OR trade OR injury OR lineup OR transfer OR coach)"
-    )
-    encoded_query = urllib.parse.quote_plus(enhanced_query)
+    encoded_query = urllib.parse.quote_plus(query)
     return (
         f"https://newsapi.org/v2/everything?"
         f"q={encoded_query}&"
@@ -40,13 +36,12 @@ async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.utcnow().date()
 
     if len(args) == 2:
-        date_str = args[1]
         try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+            date_obj = datetime.strptime(args[1], "%Y-%m-%d").date()
+            from_date = to_date = date_obj.isoformat()
         except ValueError:
             await update.message.reply_text("Virheellinen päivämäärämuoto. Käytä YYYY-MM-DD.")
             return
-        from_date = to_date = date_obj.isoformat()
     else:
         from_date = (today - timedelta(days=10)).isoformat()
         to_date = today.isoformat()
@@ -76,7 +71,7 @@ async def uutiset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_text = f"<b>Uutiset aiheesta '{query}' ajalta {from_date} - {to_date}:</b>\n\n"
     for article in sorted_articles:
-        title = article.get("title", "Ei otsikkoa")
+        title = article.get("title", "Ei otsikkoa").replace("<", "&lt;").replace(">", "&gt;")
         url = article.get("url", "")
         reply_text += f"• <a href='{url}'>{title}</a>\n"
 
