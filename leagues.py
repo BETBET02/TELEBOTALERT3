@@ -1,11 +1,30 @@
 LEAGUES = {
-    "La_Liga": "sr:competition:7",
-    "Premier_League": "sr:competition:8",
-    "Bundesliga": "sr:competition:9",
-    "Serie_A": "sr:competition:10",
-    "Ligue_1": "sr:competition:11",
-    "Champions_League": "sr:competition:12",
-    "MLS": "sr:competition:13",
-    "Veikkausliiga": "sr:competition:14",
-    "Eredivisie": "sr:competition:15",
-    "Brasileirao": "sr:competition:16",
+    "La_Liga": {
+        "id": "sr:competition:8",
+        "name": "La Liga"
+    },
+    "Premier_League": {
+        "id": "sr:competition:17",
+        "name": "Premier League"
+    },
+    "Serie_A": {
+        "id": "sr:competition:23",
+        "name": "Serie A"
+    },
+    "Bundesliga": {
+        "id": "sr:competition:35",
+        "name": "Bundesliga"
+    },
+    "Ligue_1": {
+        "id": "sr:competition:34",
+        "name": "Ligue 1"
+    },
+    "Serie_A_Brazi": {
+        "id": "sr:competition:215",
+        "name": "Serie_A_Brazi"
+    },
+    "Champions_League": {
+        "id": "sr:competition:7",
+        "name": "Champions League"
+    }
+}
