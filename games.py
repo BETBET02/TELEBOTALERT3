@@ -1,30 +1,31 @@
-import os
-import aiohttp
+import requests
+from telegram import Update
+from telegram.ext import ContextTypes
 from datetime import datetime
 
-API_KEY = os.getenv("ODDS_API_KEY")
-BASE_URL = "https://api.the-odds-api.com/v4/sports/soccer_sweden_allsvenskan/events"
+SPORTSRADAR_API_KEY = "YOUR_SPORTSRADAR_KEY"
 
-async def get_today_matches():
-    if not API_KEY:
-        raise RuntimeError("ODDS_API_KEY ympäristömuuttuja ei ole asetettu!")
+async def ottelut(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    date = datetime.now().strftime('%Y-%m-%d')
+    url = f"https://api.sportradar.com/soccer/trial/v4/en/schedules/{date}/schedule.json?api_key={SPORTSRADAR_API_KEY}"
 
-    async with aiohttp.ClientSession() as session:
-        params = {"apiKey": API_KEY}
-        async with session.get(BASE_URL, params=params) as resp:
-            if resp.status != 200:
-                raise RuntimeError(f"API-kutsu epäonnistui, statuskoodi: {resp.status}")
-            data = await resp.json()
+    r = requests.get(url)
+    if r.status_code != 200:
+        await update.message.reply_text("Tietojen haku epäonnistui.")
+        return
 
-    today = datetime.utcnow().date()
-    matches = []
+    data = r.json()
+    matches = data.get("sport_events", [])[:5]
 
-    for match in data:
-        match_time = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
-        if match_time.date() == today:
-            home = match.get("home_team", "Tuntematon")
-            away = match.get("away_team", "Tuntematon")
-            time_str = match_time.strftime("%H:%M")
-            matches.append(f"{home} vs {away} klo {time_str}")
+    if not matches:
+        await update.message.reply_text("Tänään ei ole otteluita.")
+        return
 
-    return matches
+    message = "Tämän päivän ottelut:\n"
+    for m in matches:
+        home = m["competitors"][0]["name"]
+        away = m["competitors"][1]["name"]
+        time = m["scheduled"][11:16]
+        message += f"{time}: {home} vs {away}\n"
+
+    await update.message.reply_text(message)
