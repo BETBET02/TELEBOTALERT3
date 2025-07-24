@@ -8,7 +8,6 @@ from config import SPORTSRADAR_API_KEY, THRESHOLD_PERCENT
 API_BASE = "https://api.sportsdata.io/v4/soccer"
 
 def hae_ottelut(sarja_id):
-    # Tässä esimerkkikutsu, muokkaa tarpeen mukaan Sportsradarin dokumentaation mukaisesti
     url = f"https://api.sportradar.com/soccer-tournament/v2/en/competitions/{sarja_id}/schedule.json?api_key={SPORTSRADAR_API_KEY}"
     resp = requests.get(url)
     if resp.status_code != 200:
@@ -36,11 +35,8 @@ async def kerroinmuutokset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for ottelu in ottelut:
             event_id = ottelu["id"]
-            # Hae kertoimet Sportsradar APIsta (esim. markkinat)
-            # Tässä pitää tehdä oikea haku, tämä on pelkkä esimerkki
-            # Haku endpointille: /odds/v4/en/sport_events/{event_id}/markets.json?api_key=...
 
-            # Tässä simuloidaan:
+            # Tässä esimerkissä simuloidaan uudet kertoimet
             uusi_kertoimet = {
                 "Unibet": {"match_winner_1": 2.4, "match_winner_2": 3.1},
                 "Bet365": {"match_winner_1": 2.3, "match_winner_2": 3.2},
@@ -72,4 +68,4 @@ async def kerroinmuutokset(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(viesti)
 
     else:
-        await update.message.reply_text(f"Sarjaa tai joukkuetta {hakusana} ei tunnistettu.")
+        await update.message.reply_text(f"Sarjaa tai joukkuetta '{hakusana}' ei löydy. Käytä jotain seuraavista: {', '.join(LEAGUES.keys())}")
