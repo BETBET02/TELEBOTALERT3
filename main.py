@@ -8,13 +8,11 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-async def main():
+def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("kerroinmuutokset", kerroinmuutokset))
     print("Bot käynnissä...")
-    await app.run_polling()
+    app.run_polling()
 
 if __name__ == '__main__':
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    main()
