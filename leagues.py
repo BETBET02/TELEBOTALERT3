@@ -1,30 +1,26 @@
 LEAGUES = {
-    "La_Liga": {
-        "id": "sr:competition:8",
-        "name": "La Liga"
+    "brasilia_serie_a": {
+        "competition_id": 325,   # sr:competition:325
+        "season_id": 128461      # sr:season:128461
     },
-    "Premier_League": {
-        "id": "sr:competition:17",
-        "name": "Premier League"
+    "epl": {
+        "competition_id": 17,
+        "season_id": 130281
     },
-    "Serie_A": {
-        "id": "sr:competition:23",
-        "name": "Serie A"
+    "laliga": {
+        "competition_id": 8,
+        "season_id": 130805
     },
-    "Bundesliga": {
-        "id": "sr:competition:35",
-        "name": "Bundesliga"
+    "serie_a": {
+        "competition_id": 23,
+        "season_id": 130971
     },
-    "Ligue_1": {
-        "id": "sr:competition:34",
-        "name": "Ligue 1"
+    "bundesliga": {
+        "competition_id": 35,
+        "season_id": 130571
     },
-    "Serie_A_Brazi": {
-        "id": "sr:competition:215",
-        "name": "Serie_A_Brazi"
-    },
-    "Champions_League": {
-        "id": "sr:competition:7",
-        "name": "Champions League"
+    "ligue_1": {
+        "competition_id": 34,
+        "season_id": 131609
     }
 }
