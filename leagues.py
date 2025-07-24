@@ -1,0 +1,11 @@
+LEAGUES = {
+    "La_Liga": "sr:competition:7",
+    "Premier_League": "sr:competition:8",
+    "Bundesliga": "sr:competition:9",
+    "Serie_A": "sr:competition:10",
+    "Ligue_1": "sr:competition:11",
+    "Champions_League": "sr:competition:12",
+    "MLS": "sr:competition:13",
+    "Veikkausliiga": "sr:competition:14",
+    "Eredivisie": "sr:competition:15",
+    "Brasileirao": "sr:competition:16",
