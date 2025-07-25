@@ -3,13 +3,12 @@ from commands.ottelut import ottelut
 from commands.kerroinmuutokset import kerroinmuutokset
 import logging
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+# Vain Render: suoraan ympäristömuuttujasta ilman dotenv
+TOKEN = os.environ["TELEGRAM_TOKEN"]
+print("DEBUG TOKEN:", TOKEN)  # Tarkista tulostuuko oikea token!
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
