@@ -8,11 +8,20 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+import sys
+from telegram.ext import ApplicationBuilder
+from commands.kerroinmuutokset import kerroinmuutokset
+
 def main():
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    if getattr(sys, '_is_running', False):
+        print("Bot already running!")
+        return
+    sys._is_running = True
+
+    app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
     app.add_handler(CommandHandler("kerroinmuutokset", kerroinmuutokset))
-    print("Bot käynnissä...")
     app.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
+
