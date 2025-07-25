@@ -1,76 +1,79 @@
 import requests
+import json
+from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
+from config import SPORTSRADAR_API_KEY, THRESHOLD_PERCENT
 from leagues import LEAGUES
 from kertoimet import lue_kertoimet, tallenna_kertoimet, laske_fissio
-from config import SPORTSRADAR_API_KEY, THRESHOLD_PERCENT
-from datetime import datetime, timezone
 
-API_BASE = "https://api.sportradar.com/soccer/v4/en"
+API_URL = "https://api.sportradar.com/soccer/v4/en/schedules/{date}/summaries.json?api_key={key}"
 
-def hae_ottelut(season_id):
-    url = f"{API_BASE}/seasons/{season_id}/schedules.json?api_key={SPORTSRADAR_API_KEY}"
+def hae_paivan_ottelut_ja_kertoimet(pvm_str: str):
+    url = API_URL.format(date=pvm_str, key=SPORTSRADAR_API_KEY)
     resp = requests.get(url)
     if resp.status_code != 200:
         return []
-
-    data = resp.json()
-    kaikki_ottelut = data.get("sport_events", [])
-
-    nyt = datetime.now(timezone.utc)
-    tulevat_ottelut = [
-        ottelu for ottelu in kaikki_ottelut
-        if datetime.fromisoformat(ottelu["scheduled"].replace("Z", "+00:00")) > nyt
-    ]
-
-    return tulevat_ottelut
+    return resp.json().get("summaries", [])
 
 async def kerroinmuutokset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Anna sarjan nimi (esim. brasilia, valioliiga).")
+        await update.message.reply_text("Anna sarjan nimi komennon jälkeen.")
         return
 
     hakusana = context.args[0].lower()
-    season_id = LEAGUES.get(hakusana)
-
-    if not season_id:
-        await update.message.reply_text(f"Sarjaa {hakusana} ei tunnistettu.")
+    competition_id = LEAGUES.get(hakusana)
+    if not competition_id:
+        await update.message.reply_text(f"Sarjaa {hakusana} ei löydy.")
         return
 
-    ottelut = hae_ottelut(season_id)
-
-    if not ottelut:
-        await update.message.reply_text(f"Ei löytynyt tulevia otteluita sarjalle {hakusana}.")
-        return
-
+    pvm = datetime.utcnow().strftime("%Y-%m-%d")
+    ottelut = hae_paivan_ottelut_ja_kertoimet(pvm)
     kertoimet_data = lue_kertoimet()
+
     muutokset = []
 
     for ottelu in ottelut:
-        event_id = ottelu["id"]
+        comp_id = ottelu.get("sport_event", {}).get("tournament", {}).get("id")
+        if comp_id != competition_id:
+            continue
 
-        # Simuloidut kertoimet (korvaa oikealla kutsulla kun valmis)
-        uusi_kertoimet = {
-            "Unibet": {"match_winner_1": 2.4, "match_winner_2": 3.1},
-            "Bet365": {"match_winner_1": 2.3, "match_winner_2": 3.2},
-        }
+        event_id = ottelu.get("sport_event", {}).get("id")
+        koti = ottelu["sport_event"]["competitors"][0]["name"]
+        vieras = ottelu["sport_event"]["competitors"][1]["name"]
+        markets = ottelu.get("markets", [])
 
-        alku_kertoimet = kertoimet_data.get(event_id, {})
-        for bookie, markets in uusi_kertoimet.items():
-            for market, uusi_kerroin in markets.items():
-                alku_kerroin = alku_kertoimet.get(bookie, {}).get(market)
-                if alku_kerroin is None:
-                    kertoimet_data.setdefault(event_id, {}).setdefault(bookie, {})[market] = uusi_kerroin
-                else:
-                    fissio = laske_fissio(alku_kerroin, uusi_kerroin)
-                    if fissio >= THRESHOLD_PERCENT:
-                        muutokset.append(
-                            f"{bookie} {market} fissio {fissio:.1f}% nousee {alku_kerroin} -> {uusi_kerroin}"
-                        )
+        for market in markets:
+            market_name = market.get("name")
+            for bookmaker in market.get("bookmakers", []):
+                bookie = bookmaker.get("name")
+                for outcome in bookmaker.get("outcomes", []):
+                    outcome_name = outcome["name"]
+                    uusi_kerroin = outcome["odds"]
+
+                    alku_kerroin = (
+                        kertoimet_data
+                        .get(event_id, {})
+                        .get(bookie, {})
+                        .get(f"{market_name}:{outcome_name}")
+                    )
+
+                    if alku_kerroin is None:
+                        # Tallennetaan uusi kerroin
+                        kertoimet_data.setdefault(event_id, {}).setdefault(bookie, {})[f"{market_name}:{outcome_name}"] = uusi_kerroin
+                    else:
+                        fissio = laske_fissio(alku_kerroin, uusi_kerroin)
+                        if fissio >= THRESHOLD_PERCENT:
+                            muutokset.append(
+                                f"{koti} - {vieras}\n{bookie} {market_name} {outcome_name}: "
+                                f"{alku_kerroin} → {uusi_kerroin} ({fissio:.1f}%)"
+                            )
 
     tallenna_kertoimet(kertoimet_data)
 
     if muutokset:
-        await update.message.reply_text("\n".join(muutokset))
+        viesti = "\n\n".join(muutokset)
     else:
-        await update.message.reply_text(f"Ei merkittäviä kerroinmuutoksia sarjassa {hakusana}.")
+        viesti = f"Ei merkittäviä kerroinmuutoksia sarjassa {hakusana}."
+
+    await update.message.reply_text(viesti[:4096])
