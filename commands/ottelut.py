@@ -1,71 +1,67 @@
-import requests
 from telegram import Update
 from telegram.ext import ContextTypes
-from leagues import LEAGUES
-from datetime import datetime
-from config import SPORTSRADAR_API_KEY
+from utils.api import fetch_json
 
-DAILY_URL = "https://api.sportradar.com/soccer/trial/v4/en/schedules/{date}/schedules.json?api_key={key}"
-PROBS_URL = "https://api.sportradar.com/soccer-probabilities/trial/v4/en/sport_events/upcoming_probabilities.json?api_key={key}"
-
+# Esim. sarjan nimi "Brasil Serie A"
 async def ottelut(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 2:
-        await update.message.reply_text("Anna liigan nimi ja päivämäärä, esim. `/ottelut seriea 26.07.2025`")
+    if not context.args:
+        await update.message.reply_text("Anna sarjan nimi komennon jälkeen, esim. /ottelut Brasil Serie A")
+        return
+    
+    sarja_haku = " ".join(context.args).lower()
+
+    # Haetaan sarjat
+    data = await fetch_json("sports/sr:sport:1/competitions.json")
+    competitions = data.get("competitions", [])
+
+    # Etsitään kilpailu, joka vastaa käyttäjän hakua
+    sarja = None
+    for comp in competitions:
+        if sarja_haku in comp.get("name", "").lower():
+            sarja = comp
+            break
+
+    if not sarja:
+        await update.message.reply_text(f"Sarjaa '{sarja_haku}' ei löytynyt.")
         return
 
-    sarja = context.args[0].lower()
-    comp_id = LEAGUES.get(sarja)
-    if not comp_id:
-        await update.message.reply_text(f"Sarjaa '{sarja}' ei tunnistettu.")
-        return
-
+    # Haetaan ottelut sarjassa
+    season_id = sarja.get("id")  # esim. "sr:competition:1"
+    # Käytetään season_idä endpointissa:
+    endpoint = f"sport_events/{season_id}/sport_event_markets.json"
+    
     try:
-        paiva = datetime.strptime(context.args[1], "%d.%m.%Y").strftime("%Y-%m-%d")
-    except:
-        await update.message.reply_text("Päivämäärä väärässä muodossa. Käytä DD.MM.YYYY")
+        ottelut_data = await fetch_json(endpoint)
+    except Exception as e:
+        await update.message.reply_text(f"Virhe haettaessa ottelutietoja: {e}")
         return
 
-    resp = requests.get(DAILY_URL.format(date=paiva, key=SPORTSRADAR_API_KEY))
-    if resp.status_code != 200:
-        await update.message.reply_text(f"Virhe ottelulistassa: {resp.status_code}")
-        return
-    schedules = resp.json().get("schedules", [])
+    # Rakennetaan viesti otteluista ja kertoimista
+    viesti = f"Ottelut sarjassa {sarja.get('name')}:\n\n"
 
-    resp2 = requests.get(PROBS_URL.format(key=SPORTSRADAR_API_KEY))
-    if resp2.status_code != 200:
-        await update.message.reply_text(f"Virhe kertoimissa: {resp2.status_code}")
-        return
-    probs = resp2.json().get("sport_event_upcoming_probabilities", [])
-
-    # Kokoa ottelut liigan kilpailussa
-    otteluet = []
-    for s in schedules:
-        evt = s.get("sport_event", {})
-        ctx = evt.get("sport_event_context", {})
-        if ctx.get("competition", {}).get("id") != comp_id:
-            continue
-        otteluet.append(evt)
-
-    if not otteluet:
-        await update.message.reply_text(f"Ei otteluita sarjassa {sarja} päivälle {paiva}.")
+    events = ottelut_data.get("sport_event_markets", [])
+    if not events:
+        viesti += "Ei otteluita tällä hetkellä."
+        await update.message.reply_text(viesti)
         return
 
-    viesti = ""
-    for ott in otteluet:
-        ev_id = ott["id"]
-        koti = ott["competitors"][0]["name"]
-        vieras = ott["competitors"][1]["name"]
-        aika = ott.get("start_time", ott.get("scheduled", ""))
+    for event in events:
+        # Ottelutiedot
+        event_data = event.get("sport_event", {})
+        home_team = event_data.get("competitors", [{}])[0].get("name", "Tuntematon")
+        away_team = event_data.get("competitors", [{}])[1].get("name", "Tuntematon")
+        start_time = event_data.get("scheduled", "tuntematon aika")
 
-        odds = {}
-        for p in probs:
-            if p.get("id") == ev_id:
-                # p.probabilities sisältää odds
-                for prob in p.get("probabilities", []):
-                    odds.update({prob["name"]: prob["value"]})
-                break
+        # Kertoimet (esim. ensimmäinen markkina ja sen ensimmäinen kerroin)
+        markets = event.get("markets", [])
+        if markets and markets[0].get("outcomes"):
+            outcomes = markets[0]["outcomes"]
+            kertoimet_str = ", ".join(
+                f"{o.get('name')}: {o.get('price')}" for o in outcomes
+            )
+        else:
+            kertoimet_str = "Kertoimia ei saatavilla"
 
-        kerrot = f"{odds.get('home_win','-')} / {odds.get('draw','-')} / {odds.get('away_win','-')}"
-        viesti += f"\n{paiva} — {koti} vs {vieras} @ {aika}\nKertoimet: {kerrot}\n"
+        viesti += f"{home_team} - {away_team} | Aloitus: {start_time}\nKertoimet: {kertoimet_str}\n\n"
 
-    await update.message.reply_text(viesti[:4096])
+    await update.message.reply_text(viesti)
