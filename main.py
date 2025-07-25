@@ -1,22 +1,22 @@
-import logging
-from telegram.ext import ApplicationBuilder, CommandHandler
-from commands.kerroinmuutokset import kerroinmuutokset
-from config import TELEGRAM_BOT_TOKEN
+import os
+from dotenv import load_dotenv
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+load_dotenv()  # Lataa .env-tiedoston arvot ympäristömuuttujiksi
 
-import sys
 from telegram.ext import ApplicationBuilder
+from config import TELEGRAM_BOT_TOKEN
 from commands.kerroinmuutokset import kerroinmuutokset
+# muut importit...
 
 def main():
-    if getattr(sys, '_is_running', False):
-        print("Bot already running!")
-        return
-    sys._is_running = True
+    token = os.getenv("TELEGRAM_BOT_TOKEN", TELEGRAM_BOT_TOKEN)
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN ei ole asetettu ympäristömuuttujaan")
+
+    app = ApplicationBuilder().token(token).build()
+
+    # Lisää handlerit jne.
+
 
     app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
     app.add_handler(CommandHandler("kerroinmuutokset", kerroinmuutokset))
