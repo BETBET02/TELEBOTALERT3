@@ -10,7 +10,10 @@ def main():
 
     app.add_handler(CommandHandler("kerroinmuutokset", kerroinmuutokset))
 
-    app.run_polling()
+from commands.ottelut import ottelut
+app.add_handler(CommandHandler("ottelut", ottelut))
+
+app.run_polling()
 
 if __name__ == "__main__":
     main()
